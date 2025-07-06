@@ -13,6 +13,16 @@ The Story Exchange Diary App is a creative web application that allows users to 
 
 ---
 
+## Rationale for Major Components
+
+The architecture aims for a balance between rapid prototyping and extensibility. The initial codebase establishes a minimal, readable React SPA with explicit separation of concerns for future scaling. Key structural decisions:
+
+- **Root App Structure**: Centralizes layout, theming, and future context providers.
+- **Feature Modules (planned)**: Feature-driven folders (auth, story, profile) will isolate business logic and UI for each core user journey, lowering cognitive load.
+- **Atomic UI Components (planned)**: Shared components (e.g., Button, Modal, ThemedContainer) ensure visual and behavioral consistency and reduce code duplication.
+
+---
+
 ## 2. Key Features
 
 - **User Authentication**: Secure registration, login, and session handling (to be implemented).
@@ -79,17 +89,36 @@ graph TD
 ## 5. State Management
 
 ### Current State
-- **useState, useEffect**: The main app uses React local state for theme management:
+
+- **Local State with Hooks**: Theme is managed with `useState` and tied to a `data-theme` attribute for global styling:
   ```js
   const [theme, setTheme] = useState('light');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
   ```
-  The selected theme is applied via a `data-theme` attribute on the root document element.
+  This use-case demonstrates "local-global" state: it originates in the App component but globally affects the CSS context.
 
-### Future State / Scaling Plan
-- **Local component state** for small features (forms, toggles, etc.).
-- If global user data, session, or story objects grow:
-  - **React Context API**: For lightweight sharing of auth/session info across components.
-  - **Redux** (or light alternatives): To be considered if complex state interaction arises.
+### Planned State (Scaling)
+
+- **Component Props**: Data flows down for simple components (e.g., a child ThemeToggle receives props).
+- **React Context**: When user authentication/session or global story objects are added, they'll be managed via the Context API, providing easy access to user info or UI state throughout the tree.
+- **Redux or Zustand**: Only adopted if state logic becomes complex (e.g., optimistic UI updates across different views, or caching/pagination for large story logs).
+- **API Data**: State from backend APIs (story lists, profile) would be fetched via `useEffect`, stored in context or reducer, and refreshed on key interactions.
+
+#### Example (State Distribution - Planned)
+```mermaid
+graph LR
+  App["App.js<br/>(theme, session context)"] --theme--> Header
+  App --session--> Main
+  Main --props--> StoryEditor
+  Main --context--> Profile
+```
+
+#### Error & Edge Handling in State
+- **Theme**: Defaults to light, fallback in case of read failure.
+- **Auth**: Session expiry/invalid tokens prompt logout and redirect.
+- **Stories/API**: API errors would show inline error banners (planned).
 
 ---
 
@@ -112,20 +141,68 @@ graph TD
 
 ## 7. Theming and Visual Style
 
-### Theming
+### Theming & Color Variable Structure
 
-- **CSS Variables**: The app uses CSS custom properties to support light and dark themes, defined in `App.css`.
-- **Theme Toggle**: Users can switch between light/dark mode via a prominent button.
-- **Color Palette**:
-  - Light theme: white backgrounds, deep blue text (`#282c34`), accent blue (`#61dafb`)
-  - Dark theme: near-black backgrounds (`#1a1a1a`), white text, accent blue
-  - Project-branded colors (planned): Intended to include highlight colors (`#4F46E5`, `#22D3EE`, `#A78BFA`) for calls-to-action and accent highlights.
+The project employs **CSS custom properties** (`:root` and `[data-theme="dark"]`) defined in `App.css`. This enables dynamic theming and clean visual separation for light/dark modes.
+
+#### Sample Variable Declarations (App.css)
+```css
+:root {
+  --bg-primary: #ffffff;        /* Main background */
+  --bg-secondary: #f8f9fa;     /* Header/section backgrounds */
+  --text-primary: #282c34;     /* Main text */
+  --text-secondary: #61dafb;   /* Links, accents */
+  --border-color: #e9ecef;     /* Borders and dividers */
+  --button-bg: #007bff;        /* Main UI buttons */
+  --button-text: #ffffff;
+}
+/* Dark theme override */
+[data-theme="dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #282c34;
+  --text-primary: #ffffff;
+  --text-secondary: #61dafb;
+  --border-color: #404040;
+  --button-bg: #0056b3;
+  --button-text: #ffffff;
+}
+```
+**Theme Toggle**: Triggered via a UI button in the app header, supports seamless transitions.
+
+#### Project Brand Colors (Planned/Future)
+In addition to current variables, future releases may introduce (from `container_details.colors`):
+- `--color-primary: #4F46E5;`
+- `--color-secondary: #22D3EE;`
+- `--color-accent: #A78BFA;`
+These would be used for calls-to-action, avatars, or story highlights.
+
+#### Theming Logic
+- CSS variables are referenced throughout all styles. Changing theme updates all UI in-place.
+- Responsive breakpoints are defined for mobile usability (`@media` rules, see `App.css`).
+- **Accessibility:** Ensuring color contrasts meets AA/AAA guidelines.
+
+---
+
+### Visual Component Patterns
+
+#### Example: Reusable Button Component (planned)
+```jsx
+function Button({ children, onClick, type='button', styleType }) {
+  return (
+    <button className={`btn${styleType ? ' btn-' + styleType : ''}`} onClick={onClick} type={type}>
+      {children}
+    </button>
+  );
+}
+```
+By relying on class-based styling, visual consistency is maintained; future button types (primary, secondary) can be supported with only CSS updates.
+
+---
 
 ### Responsive Design
 
-- **Mobile adaptation**: All layout and components should scale for mobile touch targets and smaller screens, as outlined in `App.css`.
-- **CSS classes**:
-  - `.App`, `.App-header`, `.theme-toggle`, `.container`, etc.
+- **Mobile adaptation**: Layouts adapt for mobile-first. The theme toggle and primary actions are structured for large touch targets.
+- **CSS Classes**: Core UI classes include `.App`, `.App-header`, `.theme-toggle`, `.container` (planned), following BEM/minimal conventions.
 
 ---
 
@@ -140,32 +217,132 @@ graph TD
 
 ---
 
-## 9. Main User Flows (Planned)
+## 9. Main User Flows (Planned & Expanded)
 
-### 1. Authentication
-- User accesses entry page, chooses to **register or login**.
-- (Session persists after login until logout.)
+### Authentication (Login/Registration)
 
-### 2. Story Writing & Submission
-- User enters story composition interface.
-- Submits a written story.
+#### Step-by-Step
+1. User lands on `/login`.
+2. Chooses "Register" (if new) or "Sign In" (existing).
+3. Inputs credentials.
+4. On success, session token is stored (typically in-memory or via cookie).
+5. Navigates to `/dashboard`.
 
-### 3. Exchange & AI-Narration
-- Upon submission, user receives an exchanged, AI-narrated story.
-- The story is displayed with accompanying visuals.
-
-### 4. Profile & History
-- User may view and edit their profile.
-- User may browse through sent and received stories in `History`.
+#### Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant AppFrontend
+    participant AuthAPI
+    User->>AppFrontend: Navigate to /login
+    AppFrontend->>User: Render auth form
+    User->>AppFrontend: Submit credentials
+    AppFrontend->>AuthAPI: POST /login or /register
+    AuthAPI-->>AppFrontend: Return success+token or error
+    AppFrontend->>User: Show dashboard or error message
+```
+> **Edge cases:** Invalid credentials, network errors, session expiry.
 
 ---
 
-## 10. Extensibility & Future Enhancements
+### Story Writing & Submission
 
-- **Componentization**: One component per file, strong separation of concerns, supports testability.
-- **Theming Support**: Easily expandable to support additional color schemes or accessibility modes.
-- **Routing**: Set up for page-by-page expansion as features are developed.
-- **Integrations**: Hooks for integrating API services for auth, story exchange, and AI rendering.
+#### Step-by-Step
+1. User navigates `/write`.
+2. Inputs story in a large text area (with live validation - planned).
+3. Clicks "Submit".
+4. Submission triggers POST to Exchange API (planned).
+5. On success, show a loader or transition view.
+
+#### Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant AppFrontend
+    participant StoryAPI
+    User->>AppFrontend: Enter story and submit
+    AppFrontend->>StoryAPI: POST /submitStory
+    StoryAPI-->>AppFrontend: Ack/submission id
+    AppFrontend->>User: Show waiting/exchange UI
+```
+> **Edge cases:** Empty or profane story; submission too long.
+
+---
+
+### Exchange & AI-Narration Delivery
+
+#### Step-by-Step
+1. After submit, backend returns an "exchange result" or polls until ready.
+2. App fetches AI-narrated story and associated visuals.
+3. User is shown received story, narration UI, and image (planned).
+
+#### Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant AppFrontend
+    participant StoryAPI
+    participant AINarrator
+    AppFrontend->>StoryAPI: Request exchange result
+    StoryAPI->>AINarrator: Get narration, visuals
+    AINarrator-->>StoryAPI: Return AI story+media
+    StoryAPI-->>AppFrontend: AI story+media
+    AppFrontend->>User: Show exchanged story & visuals
+```
+> **Edge cases:** Delay in AI generation, failed media fetch, story flagged as inappropriate.
+
+---
+
+### Profile & History
+
+#### Step-by-Step
+1. User visits `/profile` or `/history`.
+2. App fetches user data or story logs and displays as lists.
+3. User can update profile (e.g., email, display name - planned).
+
+---
+
+## 10. Example API Structure & Error Handling
+
+### API Interaction (Planned/Stubbed Example)
+
+API calls are not yet implemented, but the standard pattern will follow `fetch` or a light HTTP client. Each call will handle authentication headers and errors gracefully.
+
+**Example: Story Submission (future logic)**
+```js
+async function submitStory(storyText, token) {
+  const res = await fetch('/api/v1/exchange/submit', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ story: storyText })
+  });
+  if (!res.ok) {
+    throw new Error('Story submission failed.');
+  }
+  return res.json();
+}
+```
+> **Anticipated Error Scenarios:**
+> - Invalid/expired token (prompts logout and re-auth)
+> - Network timeouts (shows banner/toast)
+> - Backend validation errors (shows field validation messages)
+
+### Component Collaboration & Data Flow
+
+- **Top-down Data**: App passes theme and (eventually) session context down; page components responsible for their own fetch/lifecycle.
+- **Uplift Events**: Child components (e.g., story submission) call parent handlers or update global state/context.
+- **Loose coupling**: Future modularity will encourage isolated side effects (i.e., only background API polling/listeners where needed).
+
+### Edge-cases & Robustness
+
+- **Failed Requests**: User feedback via banners or toasts for all failures, fallback guidance.
+- **Lost Session**: App detects expired sessions and auto-logs the user out.
+- **Visual/AI Delays**: Detects backend timeouts and offers retry or alternative guidance.
+- **Theming Issues**: Theme always falls back to light; toggling protected by state (cannot get out of sync).
+- **Input Validation**: Story forms will have client-side and server-side validation (future).
 
 ---
 
