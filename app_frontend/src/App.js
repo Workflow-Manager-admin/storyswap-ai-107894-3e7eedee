@@ -39,7 +39,7 @@ function App() {
           {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
         </button>
         <Navbar />
-        <main className="container">
+        <main className="container rounded shadowed soft-blur bg-gradient">
           <Routes>
             <Route path="/" element={<Navigate replace to="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
