@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AIReply, { getAIReply } from '../components/AIReply';
 
 // PUBLIC_INTERFACE
 function StoryExchange() {
@@ -100,10 +101,22 @@ function StoryExchange() {
           }}>
             {generatedStory[mood] || "A mysterious mood was chosen... but the AI is pondering."}
           </p>
+          {/* --- Cheeky Real/Fake Guess Demo UI --- */}
+          <div style={{ margin: "2rem 0 1.5rem 0", textAlign: "left" }}>
+            <hr style={{ margin: "20px 0", border: "none", borderTop: "1px solid var(--border-color)" }} />
+            <span style={{ fontSize: 16 }}>
+              <strong>Mini-Game:</strong> Was that story <u>real</u> or <u>fake</u>? (Pick a guess!)
+            </span>
+            <div style={{ marginTop: 10, display: "flex", gap: 14 }}>
+              {/* For demo, manage local state to pick True/False */}
+              <GuessSection />
+            </div>
+            <hr style={{ margin: "20px 0 0 0", border: "none", borderTop: "1px solid var(--border-color)" }} />
+          </div>
           <button
             className="btn"
             style={{
-              marginTop: 28,
+              marginTop: 12,
               padding: "10px 22px",
               borderRadius: "6px",
               border: "none",
@@ -120,6 +133,66 @@ function StoryExchange() {
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * Demo subcomponent for "real/fake" guessing game with playful AI reply.
+ */
+function GuessSection() {
+  const [guess, setGuess] = useState(null); // 'real' or 'fake'
+  const [answer] = useState(Math.random() > 0.5 ? "real" : "fake"); // Simulate answer each reveal for fun
+  const [responded, setResponded] = useState(false);
+
+  // For pedagogic demo: if guess === answer, agree; else, disagree
+  let mode = guess === answer ? "agree" : "disagree";
+
+  return (
+    <div>
+      {!responded ? (
+        <>
+          <button
+            className="btn"
+            style={{
+              background: guess === "real" ? "var(--color-primary,#4F46E5)" : undefined,
+              color: guess === "real" ? "#fff" : undefined,
+              marginRight: 10
+            }}
+            onClick={() => { setGuess("real"); setResponded(true); }}
+          >Real</button>
+          <button
+            className="btn"
+            style={{
+              background: guess === "fake" ? "var(--color-accent,#A78BFA)" : undefined,
+              color: guess === "fake" ? "#fff" : undefined
+            }}
+            onClick={() => { setGuess("fake"); setResponded(true); }}
+          >Fake</button>
+        </>
+      ) : (
+        <>
+          {guess && (
+            <AIReply mode={mode} userGuess={guess} />
+          )}
+          <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+            <span>
+              (Psst... {`Answer: ${answer.toUpperCase()}`})
+              <button
+                style={{
+                  marginLeft: 16,
+                  background: "none",
+                  color: "var(--color-secondary,#22D3EE)",
+                  border: "none",
+                  cursor: "pointer",
+                  textDecoration: "underline"
+                }}
+                onClick={() => { setGuess(null); setResponded(false); }}
+              >Play again</button>
+            </span>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
